@@ -6,6 +6,7 @@
 #
 # USAGE:
 #   sh get_tikuser.sh *params*
+#     params1:keyword, params2:counts, params3:offset
 #
 # REMARKS:
 #   20210401 https://www.m3tech.blog/entry/2018/08/21/bash-scripting
@@ -25,6 +26,11 @@ PYTHON_V_DIR="/Users/tosh/work_system/pywork/venv_tikapi"
 INPUT_FILE=
 OUTPUT_FILE=
 FLAG_A=0
+
+ARG=a
+COUNT=100
+OFFSET=0
+MODE=2
 
 # 後処理
 function cleanup() {
@@ -113,15 +119,27 @@ function main() {
   cd $PYTHON_V_DIR
   rm -fv user_list.txt
   . bin/activate
-  python src/test.py
+  python src/get_tiktok_users.py $ARG $COUNT $OFFSET $MODE
   deactivate
 
   # curl によりTikTokへアクセスし、SNSリンク取得処理
   echo "[DEBUG] start: curl SNS get acount"
   rm -fv /var/tmp/curllog.txt
-  curl -fsSL 'https://www.tiktok.com/@ohira.hikaru' | tr '\n\r' '\t' | sed -e 's/\t//g' | grep DivShareLinks > /var/tmp/curllog.txt
+  rm -fv user_sns_list.txt
+  while read line; do
+    set +e
+    echo "$line" >> user_sns_list.txt
+    curl -fsSL "https://www.tiktok.com/@$line" |
+      tr '\n\r' '\t' |
+      sed -e 's/\t//g' |
+      ggrep -oP '<a target=.*?instagram.*?>' | 
+      sed -re 's_</?p>_\n_g' | 
+      grep -vE '/>' >> user_sns_list.txt
+    set -euC
+  done < user_list.txt
 
   show_content "$input_file" "$output_file" "$flag_a"
+
 }
 
 # エントリー処理
