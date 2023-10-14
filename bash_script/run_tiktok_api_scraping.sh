@@ -27,10 +27,19 @@ INPUT_FILE=
 OUTPUT_FILE=
 FLAG_A=0
 
-ARG=a
-COUNT=100
+MODE=5
+ARG=A
+COUNT=500
 OFFSET=0
-MODE=2
+
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+OUTPUT_DIR="output/"
+TREND_USER_LIST=$OUTPUT_DIR"trend_user_list.txt"
+LIVER_LIST=$OUTPUT_DIR"liver_list.txt"
+LIVER_LIST_TXT="liver_list.txt"
+SNS_USER_LIST=$OUTPUT_DIR"sns_user_list_$TIMESTAMP.csv"
+TARGET_USER_LIST=$OUTPUT_DIR"target_user_list.txt"
+
 
 # 後処理
 function cleanup() {
@@ -45,40 +54,41 @@ trap cleanup EXIT
 
 function usage() {
   cat <<EOS >&2
-Usage: sh $(basename "$0") [OPTIONS] <input_file>
-  DESCRIPTION
-    {DESCRIPTION}
-  OPTIONS
-    -o output_file  Output in the file
-    -a              Do something
-    -h              Show this help
-    -v              Execute with debug mode
-  EXAMPLE
-    Show content of \`README.md\` in stdout
-      $ sh $(basename "$0") README.md
-    Show this help
-      $ sh $(basename "$0") -h
-EOS
+  Usage: sh $(basename "$0") [OPTIONS] <input_file>
+    DESCRIPTION
+      {DESCRIPTION}
+    OPTIONS
+      -o output_file  Output in the file
+      -a              Do something
+      -h              Show this help
+      -v              Execute with debug mode
+    EXAMPLE
+      Show content of \`README.md\` in stdout
+        $ sh $(basename "$0") README.md
+      Show this help
+        $ sh $(basename "$0") -h
+  EOS
 }
+  
 
 function show_content() {
-  local input_file="$1"
-  local output_file="$2"
-  local flag_a="$3"
-
-  if [[ "$output_file" != "" ]] && [[ $flag_a -eq 1 ]]; then
-    cat <<EOS
-    cat "$input_file |>> $output_file"
-EOS
-  elif [[ "$output_file" != "" ]]; then
-    cat <<EOS
-    cat "$input_file |> $output_file"
-EOS
-  else
-    cat <<EOS
-    cat "$input_file"
-EOS
-  fi
+    local input_file="$1"
+    local output_file="$2"
+    local flag_a="$3"
+  
+    if [[ "$output_file" != "" ]] && [[ $flag_a -eq 1 ]]; then
+      cat <<EOS
+      cat "$input_file |>> $output_file"
+  EOS
+    elif [[ "$output_file" != "" ]]; then
+      cat <<EOS
+      cat "$input_file |> $output_file"
+  EOS
+    else
+      cat <<EOS
+      cat "$input_file"
+  EOS
+    fi
 }
 
 
@@ -105,45 +115,50 @@ function parse_args() {
   fi
 }
 
+# curl によりTikTokへアクセスし、SNSリンク取得処理
+# インスタグラムリンクをもつユーザを出力する
+function curl_tiktok() {
+    echo "[DEBUG] start: curl SNS get acount"
+    while read line;
+    do
+        echo $line
+        set +e
 
-#
-# メイン処理
-#
-function main() {
-  local input_file="$1"
-  local output_file="$2"
-  local flag_a="$3"
-
-  # python（TikApi）によるTikTokユーザ取得処理（リストに出力）
-  echo "[DEBUG] start: python get userlist"
-  cd $PYTHON_V_DIR
-  rm -fv user_list.txt
-  . bin/activate
-  python src/get_tiktok_users.py $ARG $COUNT $OFFSET $MODE
-  deactivate
-
-  # curl によりTikTokへアクセスし、SNSリンク取得処理
-  echo "[DEBUG] start: curl SNS get acount"
-  rm -fv /var/tmp/curllog.txt
-  rm -fv user_sns_list.txt
-  while read line; do
-    set +e
-    echo "$line" >> user_sns_list.txt
-    curl -fsSL "https://www.tiktok.com/@$line" |
-      tr '\n\r' '\t' |
-      sed -e 's/\t//g' |
-      ggrep -oP '<a target=.*?instagram.*?>' | 
-      sed -re 's_</?p>_\n_g' | 
-      grep -vE '/>' >> user_sns_list.txt
-    set -euC
-  done < user_list.txt
-
-  show_content "$input_file" "$output_file" "$flag_a"
-
+        curl -fsSL "https://www.tiktok.com/@$line" |
+            tr '\n\r' '\t' |
+            sed -e 's/\t//g' |
+            ggrep -oP '<a target=.*?instagram.*?>' | 
+            sed -re 's_</?p>_\n_g' | 
+            grep -vE '/>' >> $SNS_USER_LIST
+    done < $LIVER_LIST_TXT
 }
+
+# Python モジュールを実行し対象ユーザを取得する
+# 取得したユーザはcurl処理でさらに抽出する
+function py_scraping() {
+    local input_file="$1"
+    local output_file="$2"
+    local flag_a="$3"
+
+    # python（TikApi）によるTikTokユーザ取得処理（リストに出力）
+    echo "[DEBUG] start: python get userlist"
+    cd $PYTHON_V_DIR
+    rm -fv $TREND_USER_LIST
+    . bin/activate
+    python src/Main.py $ARG $COUNT $OFFSET $MODE
+    deactivate
+    #show_content "$input_file" "$output_file" "$flag_a"
+}
+
 
 # エントリー処理
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-  #parse_args "$@"
-  main "$INPUT_FILE" "$OUTPUT_FILE" "$FLAG_A"
+    # parse_args "$@"
+    # python scraping処理実行
+    echo "[DEBUG] get_tikuuser shell start."
+    py_scraping "$INPUT_FILE" "$OUTPUT_FILE" "$FLAG_A"
+
+    # curlによるインスタユーザ抽出
+    #curl_tiktok
+    echo "[DEBUG] get_tikuuser shell end."
 fi
