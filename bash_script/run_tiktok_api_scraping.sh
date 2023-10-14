@@ -53,42 +53,41 @@ trap cleanup EXIT
 #
 
 function usage() {
-  cat <<EOS >&2
+  cat <<EOS
   Usage: sh $(basename "$0") [OPTIONS] <input_file>
-    DESCRIPTION
-      {DESCRIPTION}
-    OPTIONS
-      -o output_file  Output in the file
-      -a              Do something
-      -h              Show this help
-      -v              Execute with debug mode
-    EXAMPLE
-      Show content of \`README.md\` in stdout
-        $ sh $(basename "$0") README.md
-      Show this help
-        $ sh $(basename "$0") -h
-  EOS
+  DESCRIPTION
+    {DESCRIPTION}
+  OPTIONS
+    -o output_file  Output in the file
+    -a              Do something
+    -h              Show this help
+    -v              Execute with debug mode
+  EXAMPLE
+    Show content of \`README.md\` in stdout
+      $ sh $(basename "$0") README.md
+    Show this help
+      $ sh $(basename "$0") -h
+EOS
 }
-  
 
 function show_content() {
-    local input_file="$1"
-    local output_file="$2"
-    local flag_a="$3"
-  
-    if [[ "$output_file" != "" ]] && [[ $flag_a -eq 1 ]]; then
-      cat <<EOS
-      cat "$input_file |>> $output_file"
-  EOS
-    elif [[ "$output_file" != "" ]]; then
-      cat <<EOS
-      cat "$input_file |> $output_file"
-  EOS
-    else
-      cat <<EOS
-      cat "$input_file"
-  EOS
-    fi
+  local input_file="$1"
+  local output_file="$2"
+  local flag_a="$3"
+
+  if [[ "$output_file" != "" ]] && [[ $flag_a -eq 1 ]]; then
+    cat <<EOS
+    cat "$input_file |>> $output_file"
+EOS
+  elif [[ "$output_file" != "" ]]; then
+    cat <<EOS
+    cat "$input_file |> $output_file"
+EOS
+  else
+    cat <<EOS
+    cat "$input_file"
+EOS
+  fi
 }
 
 
@@ -147,8 +146,10 @@ function py_scraping() {
     . bin/activate
     python src/Main.py $ARG $COUNT $OFFSET $MODE
     deactivate
+
     #show_content "$input_file" "$output_file" "$flag_a"
 }
+
 
 
 # エントリー処理
