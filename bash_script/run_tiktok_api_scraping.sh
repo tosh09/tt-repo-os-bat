@@ -27,10 +27,11 @@ INPUT_FILE=
 OUTPUT_FILE=
 FLAG_A=0
 
-MODE=5
 ARG=A
 COUNT=500
 OFFSET=0
+
+
 
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 OUTPUT_DIR="output/"
@@ -53,7 +54,7 @@ trap cleanup EXIT
 #
 
 function usage() {
-  cat <<EOS
+  cat <<EOS >&2
   Usage: sh $(basename "$0") [OPTIONS] <input_file>
   DESCRIPTION
     {DESCRIPTION}
@@ -134,18 +135,18 @@ function curl_tiktok() {
 
 # Python モジュールを実行し対象ユーザを取得する
 # 取得したユーザはcurl処理でさらに抽出する
-function py_scraping() {
-    local input_file="$1"
-    local output_file="$2"
-    local flag_a="$3"
+function py_main_build() {
+  local MODE="$1"
+  local SEARCH_K="$2"
 
-    # python（TikApi）によるTikTokユーザ取得処理（リストに出力）
-    echo "[DEBUG] start: python get userlist"
-    cd $PYTHON_V_DIR
-    rm -fv $TREND_USER_LIST
-    . bin/activate
-    python src/Main.py $ARG $COUNT $OFFSET $MODE
-    deactivate
+  # python（TikApi）によるTikTokユーザ取得処理（リストに出力）
+  echo "[DEBUG] start: python get userlist "
+  echo "[DEBUG] show params: $MODE $SEARCH_K "
+  cd $PYTHON_V_DIR
+  rm -fv $TREND_USER_LIST
+  . bin/activate
+  python src/Main.py $ARG $COUNT $OFFSET $MODE $SEARCH_K
+  deactivate
 
     #show_content "$input_file" "$output_file" "$flag_a"
 }
@@ -154,12 +155,13 @@ function py_scraping() {
 
 # エントリー処理
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    echo "[DEBUG] show param: $1 $2 $3"
+
     # parse_args "$@"
     # python scraping処理実行
-    echo "[DEBUG] get_tikuuser shell start."
-    py_scraping "$INPUT_FILE" "$OUTPUT_FILE" "$FLAG_A"
-
-    # curlによるインスタユーザ抽出
-    #curl_tiktok
+    echo "[DEBUG] py_scraping shell start."
+    py_main_build "$2" "$3"
+    
     echo "[DEBUG] get_tikuuser shell end."
+
 fi
